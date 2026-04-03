@@ -1,0 +1,21 @@
+/*
+ * note.css — 便签外部样式
+ * 主要样式通过 Shadow DOM 内联注入，此文件作为补充
+ * 确保宿主元素不被页面样式干扰
+ */
+
+#focusspace-note-host {
+  all: initial;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: visible !important;
+  z-index: 2147483647 !important;
+  pointer-events: none;
+}
+
+#focusspace-note-host * {
+  pointer-events: auto;
+}

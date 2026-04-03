@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "FocusSpace - 专注空间",
+  "version": "1.0.0",
+  "description": "场景驱动的标签页管理 + URL 绑定悬浮便签",
+  "permissions": ["tabs", "storage", "activeTab", "scripting"],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background/service_worker.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

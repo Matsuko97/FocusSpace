@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=380">
+  <title>FocusSpace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=DM+Sans:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- 背景纹理层 -->
+  <div class="bg-noise"></div>
+  <div class="bg-glow"></div>
+
+  <div class="app">
+    <!-- 顶部标题 -->
+    <header class="header">
+      <div class="header-brand">
+        <div class="logo-mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#logo-grad)" />
+            <path d="M8 8h8M8 12h5" stroke="#0f1117" stroke-width="2.2" stroke-linecap="round"/>
+            <circle cx="16" cy="16" r="2.5" fill="#0f1117" opacity="0.6"/>
+            <defs>
+              <linearGradient id="logo-grad" x1="2" y1="2" x2="22" y2="22">
+                <stop stop-color="#f59e0b"/>
+                <stop offset="1" stop-color="#ef4444"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <h1 class="header-title">FocusSpace</h1>
+      </div>
+      <button class="btn-ghost btn-icon" id="btn-open-note" title="在当前页面打开便签">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+      </button>
+    </header>
+
+    <!-- 视图切换 Tab -->
+    <nav class="tab-bar">
+      <div class="tab-pill" id="tab-pill"></div>
+      <button class="tab-btn active" data-view="scenes">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+        </svg>
+        场景
+      </button>
+      <button class="tab-btn" data-view="overview">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+        标签
+      </button>
+    </nav>
+
+    <!-- 场景管理视图 -->
+    <div class="view view-scenes active" id="view-scenes">
+      <!-- 智能推荐区域 -->
+      <div class="recommendation" id="recommendation" hidden>
+        <div class="rec-icon">⚡</div>
+        <div class="rec-body">
+          <span class="rec-text"></span>
+        </div>
+        <div class="rec-actions">
+          <button class="btn btn-sm btn-accent" id="btn-rec-restore">恢复</button>
+          <button class="btn btn-sm btn-ghost" id="btn-rec-dismiss">忽略</button>
+        </div>
+      </div>
+
+      <!-- 保存当前场景 -->
+      <div class="save-bar">
+        <div class="input-wrapper">
+          <svg class="input-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          <input type="text" class="input" id="input-scene-name" placeholder="为当前标签页命名场景…">
+        </div>
+        <button class="btn btn-accent" id="btn-save-scene">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/>
+          </svg>
+          保存
+        </button>
+      </div>
+
+      <!-- 场景列表 -->
+      <div class="scene-list" id="scene-list">
+        <div class="empty-state" id="empty-scenes">
+          <div class="empty-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.3">
+              <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+            </svg>
+          </div>
+          <p class="empty-title">还没有保存的场景</p>
+          <p class="empty-hint">快照当前所有标签页，随时一键恢复工作状态</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 标签概览视图 -->
+    <div class="view view-overview" id="view-overview">
+      <!-- 搜索框 -->
+      <div class="search-bar">
+        <div class="input-wrapper">
+          <svg class="input-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" class="input" id="input-search" placeholder="搜索域名或标题…">
+        </div>
+      </div>
+
+      <!-- 域名聚合列表 -->
+      <div class="domain-list" id="domain-list">
+        <div class="empty-state" id="empty-tabs">
+          <div class="empty-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.3">
+              <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+            </svg>
+          </div>
+          <p class="empty-title">没有打开的标签页</p>
+        </div>
+      </div>
+
+      <!-- 底部操作栏 -->
+      <div class="bottom-bar" id="bottom-bar" hidden>
+        <span class="selected-count"></span>
+        <button class="btn btn-danger" id="btn-close-selected">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+          关闭选中
+        </button>
+      </div>
+
+      <!-- 撤回提示 -->
+      <div class="undo-bar" id="undo-bar" hidden>
+        <span class="undo-text"></span>
+        <button class="btn btn-sm btn-undo" id="btn-undo">撤回</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 确认弹窗 -->
+  <div class="confirm-overlay" id="confirm-overlay" hidden>
+    <div class="confirm-dialog">
+      <p class="confirm-msg" id="confirm-msg"></p>
+      <div class="confirm-actions">
+        <button class="btn btn-ghost" id="confirm-cancel">取消</button>
+        <button class="btn btn-danger" id="confirm-ok">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../utils/storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
