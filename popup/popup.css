@@ -367,9 +367,14 @@ body {
 
 .scene-card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+}
+
+.scene-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .scene-name {
@@ -378,6 +383,9 @@ body {
   font-size: 13.5px;
   letter-spacing: -0.2px;
   color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .scene-meta {
@@ -404,6 +412,33 @@ body {
 .scene-actions {
   display: flex;
   gap: 2px;
+  flex-shrink: 0;
+}
+
+.scene-actions .btn-icon {
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.scene-card:hover .scene-actions .btn-icon {
+  opacity: 1;
+}
+
+.scene-actions .btn-icon[data-action="restore"] {
+  opacity: 1;
+  color: var(--amber);
+}
+
+.scene-actions .btn-icon[data-action="delete"]:hover {
+  color: var(--coral);
+}
+
+.scene-actions .btn-icon[data-action="toggle"] {
+  opacity: 1;
+}
+
+.scene-actions .btn-icon[data-action="toggle"] svg {
+  transition: transform 0.25s var(--ease-out);
 }
 
 .scene-detail {
@@ -436,6 +471,27 @@ body {
   width: 13px;
   height: 13px;
   border-radius: 2px;
+}
+
+.scene-tab-item span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scene-detail-tabs {
+  max-height: 150px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-active) transparent;
+}
+
+.rename-input {
+  padding: 0 8px !important;
+  height: 24px !important;
+  font-size: 13px !important;
+  font-family: var(--font-display) !important;
+  font-weight: 600 !important;
 }
 
 /* ========== 搜索栏 ========== */
