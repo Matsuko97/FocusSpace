@@ -281,9 +281,32 @@
     const ws = workspaces.find(w => w.id === id);
     if (!ws) return;
 
-    // 追加打开所有标签
+    // 查询哪些 URL 有便签
+    const allNotes = await Storage.getAllURLNotes();
+    const urlsWithNotes = new Set();
     for (const t of ws.tabs) {
-      chrome.tabs.create({ url: t.url, pinned: t.pinned, active: false });
+      const urlKey = t.url.split('#')[0];
+      if (allNotes[urlKey] && allNotes[urlKey].length > 0) {
+        urlsWithNotes.add(urlKey);
+      }
+    }
+
+    // 追加打开所有标签，收集需要注入便签的 tabId
+    const tabsNeedingNotes = [];
+    for (const t of ws.tabs) {
+      const created = await chrome.tabs.create({ url: t.url, pinned: t.pinned, active: false });
+      const urlKey = t.url.split('#')[0];
+      if (urlsWithNotes.has(urlKey)) {
+        tabsNeedingNotes.push(created.id);
+      }
+    }
+
+    // 通知 service_worker 在这些 tab 加载完成后注入便签
+    if (tabsNeedingNotes.length > 0) {
+      chrome.runtime.sendMessage({
+        type: 'INJECT_NOTES_ON_LOAD',
+        tabIds: tabsNeedingNotes
+      }).catch(() => {});
     }
 
     // 记录 history

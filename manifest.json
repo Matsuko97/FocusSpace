@@ -3,7 +3,7 @@
   "name": "FocusSpace - 专注空间",
   "version": "1.0.0",
   "description": "场景驱动的标签页管理 + URL 绑定悬浮便签",
-  "permissions": ["tabs", "storage", "activeTab", "scripting"],
+  "permissions": ["tabs", "storage", "activeTab", "scripting", "alarms"],
   "action": {
     "default_popup": "popup/popup.html",
     "default_icon": {
