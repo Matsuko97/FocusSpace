@@ -434,10 +434,296 @@
     return d.innerHTML;
   }
 
-  // ========== 标签概览加载（占位） ==========
-  function loadTabOverview() {
-    // 阶段四实现
+  // ========== 标签概览 (模块 C) ==========
+  const domainListEl = document.getElementById('domain-list');
+  const emptyTabs = document.getElementById('empty-tabs');
+  const inputSearch = document.getElementById('input-search');
+  const bottomBar = document.getElementById('bottom-bar');
+  const selectedCountEl = bottomBar.querySelector('.selected-count');
+  const btnCloseSelected = document.getElementById('btn-close-selected');
+  const undoBar = document.getElementById('undo-bar');
+  const undoText = undoBar.querySelector('.undo-text');
+  const btnUndo = document.getElementById('btn-undo');
+
+  let allTabs = [];         // 当前窗口所有 tab 原始数据
+  let domainGroups = {};    // { hostname: [tab, ...] }
+  let checkedTabIds = new Set();
+  let undoTimer = null;
+
+  async function loadTabOverview(preserveUndo = false) {
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    // 兼容新创建的 tab：URL 可能在 pendingUrl 中
+    allTabs = tabs.filter(t => {
+      const url = t.url || t.pendingUrl || '';
+      return /^https?:\/\//.test(url);
+    }).map(t => {
+      // 确保 url 字段可用
+      if (!t.url || t.url === 'about:blank' || t.url === 'chrome://newtab/') {
+        t.url = t.pendingUrl || t.url;
+      }
+      return t;
+    });
+    checkedTabIds.clear();
+    if (!preserveUndo) {
+      const cache = await Storage.getUndoCache();
+      if (cache && (Date.now() - cache.timestamp) < 5000) {
+        showUndoBar(cache.closedTabs.length);
+      } else {
+        undoBar.hidden = true;
+        if (cache) await Storage.clearUndoCache();
+      }
+    }
+    bottomBar.hidden = true;
+    buildDomainGroups(allTabs);
+    renderDomainList();
   }
+
+  function buildDomainGroups(tabs) {
+    domainGroups = {};
+    tabs.forEach(t => {
+      try {
+        const host = new URL(t.url).hostname;
+        if (!domainGroups[host]) domainGroups[host] = [];
+        domainGroups[host].push(t);
+      } catch {}
+    });
+  }
+
+  function getFilteredGroups() {
+    const query = inputSearch.value.trim().toLowerCase();
+    if (!query) return domainGroups;
+
+    const filtered = {};
+    for (const [host, tabs] of Object.entries(domainGroups)) {
+      if (host.toLowerCase().includes(query)) {
+        filtered[host] = tabs;
+      } else {
+        const matchedTabs = tabs.filter(t =>
+          (t.title || '').toLowerCase().includes(query)
+        );
+        if (matchedTabs.length > 0) filtered[host] = matchedTabs;
+      }
+    }
+    return filtered;
+  }
+
+  function renderDomainList() {
+    // 清除旧内容（保留 empty-state）
+    domainListEl.querySelectorAll('.domain-group').forEach(el => el.remove());
+
+    const groups = getFilteredGroups();
+    const sortedHosts = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
+
+    if (sortedHosts.length === 0) {
+      emptyTabs.hidden = false;
+      bottomBar.hidden = true;
+      return;
+    }
+    emptyTabs.hidden = true;
+
+    sortedHosts.forEach((host, idx) => {
+      const tabs = groups[host];
+      const group = document.createElement('div');
+      group.className = 'domain-group';
+      group.style.animationDelay = `${idx * 0.04}s`;
+
+      // 取第一个 tab 的 favicon
+      const firstFav = tabs[0].favIconUrl || '';
+      const favHtml = firstFav
+        ? `<img class="domain-favicon" src="${escapeHtml(firstFav)}" onerror="this.style.display='none'">`
+        : `<span class="domain-favicon" style="display:inline-block;width:16px;height:16px;background:var(--surface-active);border-radius:3px;"></span>`;
+
+      group.innerHTML = `
+        <div class="domain-header">
+          <svg class="domain-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9,6 15,12 9,18"/>
+          </svg>
+          ${favHtml}
+          <span class="domain-name">${escapeHtml(host)}</span>
+          <span class="domain-count">${tabs.length}</span>
+          <button class="btn-domain-close" title="关闭全部 ${host} 标签">✕</button>
+        </div>
+        <div class="domain-tabs">
+          ${tabs.map(t => `
+            <div class="tab-row" data-tab-id="${t.id}">
+              <label>
+                <input type="checkbox" ${checkedTabIds.has(t.id) ? 'checked' : ''}>
+                <span>${escapeHtml(t.title || t.url)}</span>
+              </label>
+              <button class="btn-close-tab" title="关闭此标签">✕</button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+      // 展开/收起
+      const header = group.querySelector('.domain-header');
+      const chevron = group.querySelector('.domain-chevron');
+      const tabsContainer = group.querySelector('.domain-tabs');
+
+      header.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-domain-close')) return;
+        tabsContainer.classList.toggle('open');
+        chevron.classList.toggle('open');
+      });
+
+      // 关闭整个域名的 Tab
+      group.querySelector('.btn-domain-close').addEventListener('click', () => {
+        const ids = tabs.map(t => t.id);
+        closeTabs(ids, `${host} 的 ${ids.length} 个标签`);
+      });
+
+      // Tab 行事件委托
+      tabsContainer.addEventListener('click', (e) => {
+        // 单个关闭按钮
+        const closeBtn = e.target.closest('.btn-close-tab');
+        if (closeBtn) {
+          const row = closeBtn.closest('.tab-row');
+          const tabId = parseInt(row.dataset.tabId);
+          closeTabs([tabId], '1 个标签');
+          return;
+        }
+
+        // 复选框
+        const checkbox = e.target.closest('input[type="checkbox"]');
+        if (checkbox) {
+          const row = checkbox.closest('.tab-row');
+          const tabId = parseInt(row.dataset.tabId);
+          if (checkbox.checked) {
+            checkedTabIds.add(tabId);
+          } else {
+            checkedTabIds.delete(tabId);
+          }
+          updateBottomBar();
+        }
+      });
+
+      domainListEl.appendChild(group);
+    });
+
+    updateBottomBar();
+  }
+
+  function updateBottomBar() {
+    if (checkedTabIds.size > 0) {
+      bottomBar.hidden = false;
+      selectedCountEl.textContent = `已选 ${checkedTabIds.size} 个`;
+    } else {
+      bottomBar.hidden = true;
+    }
+  }
+
+  // ========== 批量关闭 ==========
+  async function closeTabs(tabIds, description) {
+    if (tabIds.length === 0) return;
+
+    // 排除当前活动 Tab，防止 popup 关闭
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const activeTabId = activeTab ? activeTab.id : null;
+    let excludedActive = false;
+
+    const idsToClose = tabIds.filter(id => {
+      if (id === activeTabId) {
+        excludedActive = true;
+        return false;
+      }
+      return true;
+    });
+
+    if (idsToClose.length === 0) {
+      showToast('当前标签页无法在此关闭');
+      return;
+    }
+
+    // >3 个标签时弹确认
+    if (idsToClose.length > 3) {
+      const confirmed = await showConfirm(`即将关闭 ${idsToClose.length} 个标签，确认？`);
+      if (!confirmed) return;
+    }
+
+    // 收集关闭信息用于撤回
+    const closedInfo = [];
+    for (const id of idsToClose) {
+      const t = allTabs.find(tab => tab.id === id);
+      if (t) closedInfo.push({ url: t.url, title: t.title || '' });
+    }
+
+    // 缓存撤回数据
+    await Storage.saveUndoCache({
+      closedTabs: closedInfo,
+      timestamp: Date.now()
+    });
+
+    // 执行关闭
+    await chrome.tabs.remove(idsToClose);
+
+    // 清理选中状态
+    idsToClose.forEach(id => checkedTabIds.delete(id));
+    if (excludedActive) checkedTabIds.delete(activeTabId);
+
+    // 提示
+    if (excludedActive) {
+      showToast(`已关闭 ${closedInfo.length} 个标签（当前标签页已保留）`);
+    }
+
+    // 显示撤回栏
+    showUndoBar(closedInfo.length);
+
+    // 刷新列表（保留撤回栏）
+    await loadTabOverview(true);
+  }
+
+  // 关闭选中按钮
+  btnCloseSelected.addEventListener('click', () => {
+    const ids = [...checkedTabIds];
+    closeTabs(ids, `${ids.length} 个标签`);
+  });
+
+  // ========== 撤回 ==========
+  function showUndoBar(count) {
+    undoText.textContent = `已关闭 ${count} 个标签`;
+    undoBar.hidden = false;
+    clearTimeout(undoTimer);
+    undoTimer = setTimeout(() => {
+      undoBar.hidden = true;
+    }, 5000);
+  }
+
+  btnUndo.addEventListener('click', async () => {
+    const cache = await Storage.getUndoCache();
+    if (!cache) {
+      showToast('撤回数据已过期');
+      undoBar.hidden = true;
+      return;
+    }
+
+    const elapsed = Date.now() - cache.timestamp;
+    if (elapsed > 5000) {
+      showToast('撤回已过期');
+      undoBar.hidden = true;
+      await Storage.clearUndoCache();
+      return;
+    }
+
+    // 重新打开（等待所有 tab 创建完成）
+    const createPromises = cache.closedTabs.map(t =>
+      chrome.tabs.create({ url: t.url, active: false })
+    );
+    await Promise.all(createPromises);
+
+    showToast(`已撤回 ${cache.closedTabs.length} 个标签`);
+    undoBar.hidden = true;
+    clearTimeout(undoTimer);
+    await Storage.clearUndoCache();
+
+    // 刷新列表
+    await loadTabOverview();
+  });
+
+  // ========== 搜索过滤 ==========
+  inputSearch.addEventListener('input', () => {
+    renderDomainList();
+  });
 
   // ========== 初始化 ==========
   async function init() {
