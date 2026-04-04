@@ -553,9 +553,15 @@
   let domainGroups = {};    // { hostname: [tab, ...] }
   let checkedTabIds = new Set();
   let undoTimer = null;
+  let tabActivity = {};     // { tabId: lastActiveTimestamp }
+  const STALE_THRESHOLD = 24 * 60 * 60 * 1000; // 24 小时
 
   async function loadTabOverview(preserveUndo = false) {
     const tabs = await chrome.tabs.query({ currentWindow: true });
+    // 加载活跃度数据
+    const actResult = await chrome.storage.local.get('tabActivity');
+    tabActivity = actResult.tabActivity || {};
+
     // 兼容新创建的 tab：URL 可能在 pendingUrl 中
     allTabs = tabs.filter(t => {
       const url = t.url || t.pendingUrl || '';
@@ -648,16 +654,20 @@
           <button class="btn-domain-close" title="关闭全部 ${host} 标签">✕</button>
         </div>
         <div class="domain-tabs">
-          ${tabs.map(t => `
-            <div class="tab-row" data-tab-id="${t.id}">
+          ${tabs.map(t => {
+            const lastActive = tabActivity[t.id];
+            const isStale = lastActive && (Date.now() - lastActive) > STALE_THRESHOLD;
+            return `
+            <div class="tab-row${isStale ? ' stale' : ''}" data-tab-id="${t.id}">
               <label>
                 <input type="checkbox" ${checkedTabIds.has(t.id) ? 'checked' : ''}>
                 <span>${escapeHtml(t.title || t.url)}</span>
+                ${isStale ? '<span class="stale-badge">闲置</span>' : ''}
               </label>
               <button class="btn-park-tab" title="暂存此标签">||</button>
               <button class="btn-close-tab" title="关闭此标签">✕</button>
-            </div>
-          `).join('')}
+            </div>`;
+          }).join('')}
         </div>
       `;
 

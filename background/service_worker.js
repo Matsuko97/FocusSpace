@@ -69,3 +69,29 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     _noteInjectorCleanup = null;
   }
 });
+
+// ========== 标签活跃度追踪 (模块 H) ==========
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  const result = await chrome.storage.local.get('tabActivity');
+  const activity = result.tabActivity || {};
+  activity[activeInfo.tabId] = Date.now();
+  // 清理超过 200 条的旧记录，防止无限增长
+  const entries = Object.entries(activity);
+  if (entries.length > 200) {
+    entries.sort((a, b) => b[1] - a[1]);
+    const trimmed = Object.fromEntries(entries.slice(0, 150));
+    await chrome.storage.local.set({ tabActivity: trimmed });
+  } else {
+    await chrome.storage.local.set({ tabActivity: activity });
+  }
+});
+
+// Tab 关闭时清理对应记录
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  const result = await chrome.storage.local.get('tabActivity');
+  const activity = result.tabActivity || {};
+  if (activity[tabId]) {
+    delete activity[tabId];
+    await chrome.storage.local.set({ tabActivity: activity });
+  }
+});

@@ -741,6 +741,25 @@ body {
   background: rgba(248, 113, 113, 0.1);
 }
 
+/* ========== 标签活跃度标记 (模块 H) ========== */
+.tab-row.stale label span:first-of-type {
+  opacity: 0.45;
+}
+
+.stale-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  margin-left: 4px;
+  border-radius: var(--radius-xs);
+  font-size: 9px;
+  font-weight: 600;
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--coral);
+  flex-shrink: 0;
+  letter-spacing: 0.3px;
+}
+
 /* ========== 底部操作栏 ========== */
 .bottom-bar {
   display: flex;
