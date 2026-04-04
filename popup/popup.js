@@ -23,22 +23,30 @@
   const confirmOk = document.getElementById('confirm-ok');
   const confirmCancel = document.getElementById('confirm-cancel');
 
+  const viewParking = document.getElementById('view-parking');
+
   // ========== 视图切换（滑动 pill 动画） ==========
+  const viewMap = { scenes: viewScenes, overview: viewOverview, parking: viewParking };
+  const pillPosMap = { scenes: '', overview: 'pos-1', parking: 'pos-2' };
+
   tabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       tabBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
 
       const target = btn.dataset.view;
-      const isRight = target === 'overview';
-      tabPill.classList.toggle('right', isRight);
 
-      viewScenes.classList.toggle('active', target === 'scenes');
-      viewOverview.classList.toggle('active', target === 'overview');
+      // pill 位置
+      tabPill.className = 'tab-pill';
+      if (pillPosMap[target]) tabPill.classList.add(pillPosMap[target]);
 
-      if (target === 'overview') {
-        loadTabOverview();
-      }
+      // 视图切换
+      Object.entries(viewMap).forEach(([key, el]) => {
+        el.classList.toggle('active', key === target);
+      });
+
+      if (target === 'overview') loadTabOverview();
+      if (target === 'parking') renderParkingList();
     });
   });
 
@@ -646,6 +654,7 @@
                 <input type="checkbox" ${checkedTabIds.has(t.id) ? 'checked' : ''}>
                 <span>${escapeHtml(t.title || t.url)}</span>
               </label>
+              <button class="btn-park-tab" title="暂存此标签">||</button>
               <button class="btn-close-tab" title="关闭此标签">✕</button>
             </div>
           `).join('')}
@@ -671,6 +680,15 @@
 
       // Tab 行事件委托
       tabsContainer.addEventListener('click', (e) => {
+        // 暂存按钮
+        const parkBtn = e.target.closest('.btn-park-tab');
+        if (parkBtn) {
+          const row = parkBtn.closest('.tab-row');
+          const tabId = parseInt(row.dataset.tabId);
+          parkTab(tabId);
+          return;
+        }
+
         // 单个关闭按钮
         const closeBtn = e.target.closest('.btn-close-tab');
         if (closeBtn) {
@@ -891,6 +909,114 @@
   btnRecDismiss.addEventListener('click', () => {
     dismissedRecId = recommendationEl.dataset.wsId;
     recommendationEl.hidden = true;
+  });
+
+  // ========== 隔离区 (模块 G) ==========
+  const parkingListEl = document.getElementById('parking-list');
+  const emptyParking = document.getElementById('empty-parking');
+  const btnClearParking = document.getElementById('btn-clear-parking');
+
+  async function parkTab(tabId) {
+    // 排除当前活动 Tab
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (activeTab && activeTab.id === tabId) {
+      showToast('当前标签页无法暂存');
+      return;
+    }
+
+    const t = allTabs.find(tab => tab.id === tabId);
+    if (!t) return;
+
+    const parked = await Storage.getParkedTabs();
+    parked.unshift({
+      url: t.url || t.pendingUrl || '',
+      title: t.title || '',
+      favIconUrl: t.favIconUrl || '',
+      parkedAt: Date.now()
+    });
+    await Storage.saveParkedTabs(parked);
+
+    // 关闭标签
+    await chrome.tabs.remove(tabId);
+    checkedTabIds.delete(tabId);
+
+    showToast('已暂存标签页');
+    await loadTabOverview(true);
+  }
+
+  async function renderParkingList() {
+    const parked = await Storage.getParkedTabs();
+
+    parkingListEl.querySelectorAll('.parked-item').forEach(el => el.remove());
+
+    if (parked.length === 0) {
+      emptyParking.hidden = false;
+      btnClearParking.hidden = true;
+      return;
+    }
+    emptyParking.hidden = true;
+    btnClearParking.hidden = false;
+
+    parked.forEach((item, idx) => {
+      const el = document.createElement('div');
+      el.className = 'parked-item';
+      if (idx < 10) el.style.animationDelay = `${idx * 0.04}s`;
+
+      const favHtml = item.favIconUrl
+        ? `<img class="parked-favicon" src="${escapeHtml(item.favIconUrl)}" onerror="this.replaceWith(document.createRange().createContextualFragment('<span class=\\'parked-favicon favicon-fallback\\'></span>'));">`
+        : '<span class="parked-favicon favicon-fallback"></span>';
+
+      el.innerHTML = `
+        ${favHtml}
+        <div class="parked-info">
+          <div class="parked-title">${escapeHtml(item.title || item.url)}</div>
+          <div class="parked-url">${escapeHtml(item.url)}</div>
+        </div>
+        <span class="parked-time">${timeAgo(item.parkedAt)}</span>
+        <div class="parked-actions">
+          <button class="btn-icon btn-ghost" data-action="restore-park" title="恢复">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 105.64-12.36L1 10"/>
+            </svg>
+          </button>
+          <button class="btn-icon btn-ghost" data-action="delete-park" title="删除">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+            </svg>
+          </button>
+        </div>
+      `;
+
+      el.addEventListener('click', async (e) => {
+        const actionBtn = e.target.closest('[data-action]');
+        if (!actionBtn) return;
+        const action = actionBtn.dataset.action;
+
+        if (action === 'restore-park') {
+          await chrome.tabs.create({ url: item.url, active: false });
+          parked.splice(idx, 1);
+          await Storage.saveParkedTabs(parked);
+          showToast('已恢复标签页');
+          renderParkingList();
+        } else if (action === 'delete-park') {
+          parked.splice(idx, 1);
+          await Storage.saveParkedTabs(parked);
+          renderParkingList();
+        }
+      });
+
+      parkingListEl.appendChild(el);
+    });
+  }
+
+  btnClearParking.addEventListener('click', async () => {
+    const parked = await Storage.getParkedTabs();
+    if (parked.length === 0) return;
+    const confirmed = await showConfirm(`确定清空 ${parked.length} 个暂存标签？`);
+    if (!confirmed) return;
+    await Storage.saveParkedTabs([]);
+    showToast('已清空暂存区');
+    renderParkingList();
   });
 
   // ========== 初始化 ==========

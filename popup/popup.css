@@ -141,7 +141,7 @@ body {
   position: absolute;
   top: 3px;
   left: 3px;
-  width: calc(50% - 3px);
+  width: calc(33.333% - 2px);
   height: calc(100% - 6px);
   background: var(--surface-active);
   border-radius: var(--radius-sm);
@@ -150,8 +150,12 @@ body {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 
-.tab-pill.right {
+.tab-pill.pos-1 {
   transform: translateX(100%);
+}
+
+.tab-pill.pos-2 {
+  transform: translateX(200%);
 }
 
 .tab-btn {
@@ -709,8 +713,27 @@ body {
   opacity: 0;
 }
 
-.tab-row:hover .btn-close-tab {
+.btn-park-tab {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 3px;
+  line-height: 1;
+  border-radius: var(--radius-xs);
+  transition: all 0.15s;
+  opacity: 0;
+}
+
+.tab-row:hover .btn-close-tab,
+.tab-row:hover .btn-park-tab {
   opacity: 1;
+}
+
+.btn-park-tab:hover {
+  color: var(--amber);
+  background: var(--amber-ghost);
 }
 
 .btn-close-tab:hover {
@@ -994,6 +1017,108 @@ body {
 .timeline-count {
   color: var(--text-dim);
   margin-left: auto;
+}
+
+/* ========== 隔离区 (Parking) ========== */
+.parking-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.parking-title {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.parking-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.parked-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  transition: border-color 0.2s, transform 0.2s var(--ease-out);
+  animation: cardIn 0.35s var(--ease-out) both;
+}
+
+.parked-item:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.parked-favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.parked-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.parked-title {
+  font-size: 12.5px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.parked-url {
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.parked-time {
+  font-size: 10px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.parked-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.parked-actions .btn-icon {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.parked-item:hover .parked-actions .btn-icon {
+  opacity: 1;
+}
+
+.parked-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  background: var(--amber-ghost);
+  color: var(--amber);
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 /* ========== 便签联动交接清单 ========== */

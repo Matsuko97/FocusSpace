@@ -68,6 +68,16 @@ const Storage = (() => {
     await _remove('undoCache');
   }
 
+  // ========== Parked Tabs (隔离区) ==========
+
+  async function getParkedTabs() {
+    return (await _get('parkedTabs')) || [];
+  }
+
+  async function saveParkedTabs(tabs) {
+    await _set('parkedTabs', tabs);
+  }
+
   // ========== UUID 生成 ==========
 
   function generateId() {
@@ -85,6 +95,8 @@ const Storage = (() => {
     getUndoCache,
     saveUndoCache,
     clearUndoCache,
+    getParkedTabs,
+    saveParkedTabs,
     generateId
   };
 })();
