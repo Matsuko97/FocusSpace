@@ -725,10 +725,82 @@
     renderDomainList();
   });
 
+  // ========== 智能场景推荐 (模块 D) ==========
+  const recommendationEl = document.getElementById('recommendation');
+  const recTextEl = recommendationEl.querySelector('.rec-text');
+  const btnRecRestore = document.getElementById('btn-rec-restore');
+  const btnRecDismiss = document.getElementById('btn-rec-dismiss');
+
+  let dismissedRecId = null; // 当次 popup 会话内忽略的场景 ID
+
+  async function checkRecommendation() {
+    const workspaces = await Storage.getWorkspaces();
+    if (workspaces.length === 0) {
+      recommendationEl.hidden = true;
+      return;
+    }
+
+    // 获取当前所有 Tab 的域名列表
+    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const currentDomains = new Set();
+    tabs.forEach(t => {
+      try {
+        const url = t.url || t.pendingUrl || '';
+        if (/^https?:\/\//.test(url)) {
+          currentDomains.add(new URL(url).hostname);
+        }
+      } catch {}
+    });
+
+    if (currentDomains.size === 0) {
+      recommendationEl.hidden = true;
+      return;
+    }
+
+    // 遍历所有场景，计算匹配度
+    let bestMatch = null;
+    let bestScore = 0;
+
+    for (const ws of workspaces) {
+      if (!ws.domainFingerprint || ws.domainFingerprint.length === 0) continue;
+      if (ws.id === dismissedRecId) continue;
+
+      const intersection = ws.domainFingerprint.filter(d => currentDomains.has(d));
+      const score = intersection.length / ws.domainFingerprint.length;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = ws;
+      }
+    }
+
+    // 匹配度 ≥ 60% 才推荐
+    if (bestMatch && bestScore >= 0.6) {
+      recTextEl.textContent = `你似乎在进行「${bestMatch.name}」，要恢复完整场景吗？`;
+      recommendationEl.hidden = false;
+      recommendationEl.dataset.wsId = bestMatch.id;
+    } else {
+      recommendationEl.hidden = true;
+    }
+  }
+
+  btnRecRestore.addEventListener('click', () => {
+    const wsId = recommendationEl.dataset.wsId;
+    if (wsId) {
+      recommendationEl.hidden = true;
+      restoreScene(wsId);
+    }
+  });
+
+  btnRecDismiss.addEventListener('click', () => {
+    dismissedRecId = recommendationEl.dataset.wsId;
+    recommendationEl.hidden = true;
+  });
+
   // ========== 初始化 ==========
   async function init() {
     await renderSceneList();
-    // 阶段五实现智能推荐
+    await checkRecommendation();
   }
 
   init();
