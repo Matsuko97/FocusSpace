@@ -125,6 +125,52 @@
     }
     .fs-note-textarea::placeholder { color: rgba(0,0,0,0.3); }
 
+    /* ====== Markdown 预览 ====== */
+    .fs-note-preview {
+      width: 100%;
+      min-height: 70px;
+      font-family: inherit;
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: #333;
+      display: none;
+      cursor: default;
+      word-break: break-word;
+    }
+    .fs-note-body.preview-mode .fs-note-textarea { display: none; }
+    .fs-note-body.preview-mode .fs-note-preview { display: block; }
+
+    .fs-note-preview strong { font-weight: 700; }
+    .fs-note-preview ul {
+      margin: 2px 0;
+      padding-left: 16px;
+      list-style: disc;
+    }
+    .fs-note-preview li { margin: 1px 0; }
+
+    .fs-note-preview .md-checkbox {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      margin: 2px 0;
+    }
+    .fs-note-preview .md-checkbox input[type="checkbox"] {
+      width: 13px; height: 13px;
+      cursor: pointer;
+      accent-color: #666;
+    }
+    .fs-note-preview .md-checkbox.checked span {
+      text-decoration: line-through;
+      opacity: 0.5;
+    }
+    .fs-note-preview p { margin: 2px 0; }
+
+    .fs-note-btn.active {
+      background: rgba(0,0,0,0.1);
+      color: rgba(0,0,0,0.7);
+    }
+
     /* ====== 颜色选择 ====== */
     .fs-colors {
       display: flex;
@@ -283,12 +329,17 @@
     btnMin.innerHTML = '&#8722;';
     btnMin.title = '最小化';
 
+    const btnToggleView = document.createElement('button');
+    btnToggleView.className = 'fs-note-btn active';
+    btnToggleView.innerHTML = '&#9998;'; // ✎
+    btnToggleView.title = '切换预览/编辑';
+
     const btnDel = document.createElement('button');
     btnDel.className = 'fs-note-btn';
     btnDel.innerHTML = '&#10005;';
     btnDel.title = '删除';
 
-    header.append(minLabel, dragArea, btnMin, btnDel);
+    header.append(minLabel, dragArea, btnToggleView, btnMin, btnDel);
     note.appendChild(header);
 
     // Body
@@ -297,9 +348,14 @@
 
     const textarea = document.createElement('textarea');
     textarea.className = 'fs-note-textarea';
-    textarea.placeholder = '写点什么…';
+    textarea.placeholder = '支持 **加粗**、- 列表、- [ ] 待办';
     textarea.value = data.content || '';
+
+    const preview = document.createElement('div');
+    preview.className = 'fs-note-preview';
+
     body.appendChild(textarea);
+    body.appendChild(preview);
     note.appendChild(body);
 
     // Colors
@@ -334,6 +390,32 @@
       data.updatedAt = Date.now();
       minLabel.textContent = data.content ? data.content.substring(0, 15) : '便签';
       debounceSave();
+    });
+
+    // 预览/编辑 切换
+    let isPreviewMode = false;
+
+    function updatePreview() {
+      preview.innerHTML = renderMarkdown(data.content || '');
+      // 绑定复选框点击
+      preview.querySelectorAll('.md-checkbox input[type="checkbox"]').forEach((cb, i) => {
+        cb.addEventListener('change', () => {
+          data.content = toggleCheckbox(data.content, i);
+          data.updatedAt = Date.now();
+          textarea.value = data.content;
+          updatePreview();
+          debounceSave();
+        });
+      });
+    }
+
+    btnToggleView.addEventListener('click', () => {
+      isPreviewMode = !isPreviewMode;
+      body.classList.toggle('preview-mode', isPreviewMode);
+      btnToggleView.classList.toggle('active', !isPreviewMode);
+      if (isPreviewMode) {
+        updatePreview();
+      }
     });
 
     // 最小化 / 展开
@@ -442,6 +524,87 @@
       data.updatedAt = Date.now();
       debounceSave();
     });
+  }
+
+  // ====== Markdown 解析 (模块 J) ======
+  function renderMarkdown(text) {
+    if (!text) return '<p style="color:rgba(0,0,0,0.3)">空便签</p>';
+
+    const lines = text.split('\n');
+    let html = '';
+    let inList = false;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      // 复选框：- [x] 或 - [ ]
+      const cbMatch = trimmed.match(/^-\s*\[([ xX])\]\s*(.*)$/);
+      if (cbMatch) {
+        if (inList) { html += '</ul>'; inList = false; }
+        const checked = cbMatch[1].toLowerCase() === 'x';
+        const label = escapeMarkdown(cbMatch[2]);
+        html += `<label class="md-checkbox${checked ? ' checked' : ''}"><input type="checkbox" ${checked ? 'checked' : ''}><span>${label}</span></label><br>`;
+        continue;
+      }
+
+      // 无序列表：- text
+      const liMatch = trimmed.match(/^-\s+(.+)$/);
+      if (liMatch) {
+        if (!inList) { html += '<ul>'; inList = true; }
+        html += `<li>${inlineParse(liMatch[1])}</li>`;
+        continue;
+      }
+
+      // 关闭列表
+      if (inList) { html += '</ul>'; inList = false; }
+
+      // 空行
+      if (trimmed === '') {
+        html += '<br>';
+        continue;
+      }
+
+      // 普通段落
+      html += `<p>${inlineParse(trimmed)}</p>`;
+    }
+
+    if (inList) html += '</ul>';
+    return html;
+  }
+
+  function inlineParse(text) {
+    // **bold**
+    let result = escapeMarkdown(text);
+    result = result.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    return result;
+  }
+
+  function escapeMarkdown(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function toggleCheckbox(text, targetIndex) {
+    if (!text) return text;
+    const lines = text.split('\n');
+    let cbCount = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const match = lines[i].match(/^(\s*-\s*\[)([ xX])(\]\s*.*)$/);
+      if (match) {
+        if (cbCount === targetIndex) {
+          const currentlyChecked = match[2].toLowerCase() === 'x';
+          lines[i] = match[1] + (currentlyChecked ? ' ' : 'x') + match[3];
+          break;
+        }
+        cbCount++;
+      }
+    }
+
+    return lines.join('\n');
   }
 
   // ====== 新建便签 ======
