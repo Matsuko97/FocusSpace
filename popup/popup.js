@@ -196,8 +196,25 @@
     return `
       <div class="scene-detail-tabs">${tabsHtml}</div>
       ${historyHtml}
+      <div class="scene-detail-actions">
+        <button class="btn btn-sm btn-ghost btn-export-detail" data-ws-id="${ws.id}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          导出场景
+        </button>
+      </div>
     `;
   }
+
+  // 详情区内导出按钮事件委托
+  sceneListEl.addEventListener('click', (e) => {
+    const exportBtn = e.target.closest('.btn-export-detail');
+    if (exportBtn) {
+      const wsId = exportBtn.dataset.wsId;
+      if (wsId) exportScene(wsId);
+    }
+  });
 
   function toggleDetail(id, card) {
     const detail = card.querySelector('.scene-detail');
@@ -477,6 +494,105 @@
     showToast(`已删除场景「${ws.name}」`);
     renderSceneList();
   }
+
+  // ========== 导出场景 (模块 K) ==========
+  async function exportScene(id) {
+    const workspaces = await Storage.getWorkspaces();
+    const ws = workspaces.find(w => w.id === id);
+    if (!ws) return;
+
+    const exportData = {
+      _focusspace: true,
+      version: '1.0',
+      exportedAt: Date.now(),
+      workspace: ws
+    };
+
+    const json = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const date = new Date().toISOString().slice(0, 10);
+    const safeName = ws.name.replace(/[<>:"/\\|?*]/g, '_');
+    const filename = `FocusSpace_${safeName}_${date}.json`;
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    showToast(`已导出场景「${ws.name}」`);
+  }
+
+  // ========== 导入场景 (模块 K) ==========
+  const btnImportScene = document.getElementById('btn-import-scene');
+  const inputImportFile = document.getElementById('input-import-file');
+
+  btnImportScene.addEventListener('click', () => {
+    inputImportFile.click();
+  });
+
+  inputImportFile.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    inputImportFile.value = ''; // 重置以允许再次选择同一文件
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // 校验结构
+      if (!data._focusspace || !data.workspace || !data.workspace.tabs || !Array.isArray(data.workspace.tabs)) {
+        showToast('无效的场景文件');
+        return;
+      }
+
+      const imported = data.workspace;
+      const workspaces = await Storage.getWorkspaces();
+
+      // 检查同名
+      const existing = workspaces.find(w => w.name === imported.name);
+      if (existing) {
+        const confirmed = await showConfirm(`场景「${imported.name}」已存在，是否覆盖？`);
+        if (!confirmed) return;
+
+        // 覆盖
+        existing.tabs = imported.tabs;
+        existing.domainFingerprint = imported.domainFingerprint || [];
+        existing.history = imported.history || [];
+        existing.history.push({
+          action: 'save',
+          timestamp: Date.now(),
+          tabCount: imported.tabs.length
+        });
+        existing.updatedAt = Date.now();
+      } else {
+        // 新增（生成新 ID 避免冲突）
+        const now = Date.now();
+        workspaces.unshift({
+          id: Storage.generateId(),
+          name: imported.name,
+          tabs: imported.tabs,
+          domainFingerprint: imported.domainFingerprint || [],
+          history: (imported.history || []).concat([{
+            action: 'save',
+            timestamp: now,
+            tabCount: imported.tabs.length
+          }]),
+          createdAt: imported.createdAt || now,
+          updatedAt: now
+        });
+      }
+
+      await Storage.saveWorkspaces(workspaces);
+      showToast(`已导入场景「${imported.name}」(${imported.tabs.length} 个标签)`);
+      renderSceneList();
+    } catch (err) {
+      console.error('导入失败:', err);
+      showToast('导入失败：文件格式错误');
+    }
+  });
 
   // ========== 便签注入 ==========
   btnOpenNote.addEventListener('click', async () => {

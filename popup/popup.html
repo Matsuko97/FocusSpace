@@ -108,6 +108,17 @@
         </button>
       </div>
 
+      <!-- 导入按钮 -->
+      <div class="import-bar">
+        <button class="btn btn-ghost btn-import" id="btn-import-scene">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          导入场景
+        </button>
+        <input type="file" id="input-import-file" accept=".json" hidden>
+      </div>
+
       <!-- 场景列表 -->
       <div class="scene-list" id="scene-list">
         <div class="empty-state" id="empty-scenes">

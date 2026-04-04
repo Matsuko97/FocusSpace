@@ -55,7 +55,7 @@
 
 /* ========== 根布局 ========== */
 body {
-  width: 380px;
+  width: 400px;
   height: 520px;
   font-family: var(--font-body);
   font-size: 13px;
@@ -273,7 +273,23 @@ body {
 .save-bar {
   display: flex;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 8px;
+}
+
+/* ========== 导入栏 ========== */
+.import-bar {
+  margin-bottom: 12px;
+}
+
+.btn-import {
+  font-size: 11px;
+  height: 26px;
+  padding: 0 10px;
+  color: var(--text-dim);
+}
+
+.btn-import:hover {
+  color: var(--text-secondary);
 }
 
 /* ========== 输入框 ========== */
@@ -518,6 +534,25 @@ body {
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--surface-active) transparent;
+}
+
+/* ========== 详情区底部操作 ========== */
+.scene-detail-actions {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-export-detail {
+  font-size: 10.5px !important;
+  color: var(--text-dim) !important;
+  gap: 4px;
+}
+
+.btn-export-detail:hover {
+  color: var(--amber) !important;
 }
 
 .rename-input {
