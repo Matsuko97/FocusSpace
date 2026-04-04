@@ -99,13 +99,16 @@
     workspaces.forEach((ws, idx) => {
       const card = document.createElement('div');
       card.className = 'scene-card';
-      card.style.animationDelay = `${idx * 0.04}s`;
+      if (idx < 10) card.style.animationDelay = `${idx * 0.04}s`;
 
       const lastHistory = ws.history && ws.history.length > 0
         ? ws.history[ws.history.length - 1]
         : null;
+      const lastActionBadge = lastHistory
+        ? `<span class="meta-badge ${lastHistory.action}">${lastHistory.action === 'save' ? '保存' : '恢复'}</span>`
+        : '';
       const lastTimeText = lastHistory
-        ? `${lastHistory.action === 'save' ? '保存' : '恢复'}于 ${timeAgo(lastHistory.timestamp)}`
+        ? timeAgo(lastHistory.timestamp)
         : `创建于 ${timeAgo(ws.createdAt)}`;
 
       card.innerHTML = `
@@ -114,6 +117,7 @@
             <div class="scene-name">${escapeHtml(ws.name)}</div>
             <div class="scene-meta">
               <span class="tab-count">${ws.tabs.length} 个标签</span>
+              ${lastActionBadge}
               <span>${lastTimeText}</span>
             </div>
           </div>
@@ -163,18 +167,22 @@
   function renderSceneDetail(ws) {
     const tabsHtml = ws.tabs.map(t => {
       const icon = t.favIconUrl
-        ? `<img src="${escapeHtml(t.favIconUrl)}" width="13" height="13" onerror="this.style.display='none'">`
-        : '';
+        ? `<img src="${escapeHtml(t.favIconUrl)}" width="13" height="13" onerror="this.replaceWith(document.createRange().createContextualFragment('<span class=\\'favicon-fallback\\'></span>'));">`
+        : '<span class="favicon-fallback"></span>';
       return `<div class="scene-tab-item">${icon}<span>${escapeHtml(t.title || t.url)}</span></div>`;
     }).join('');
 
     const historyHtml = (ws.history && ws.history.length > 0)
-      ? `<div class="timeline">${ws.history.slice(-5).reverse().map(h => `
+      ? `<div class="timeline">
+          <div class="timeline-title">操作记录</div>
+          ${ws.history.slice(-8).reverse().map(h => `
           <div class="timeline-item">
+            <span class="timeline-dot ${h.action}"></span>
             <span class="timeline-badge ${h.action}">${h.action === 'save' ? '保存' : '恢复'}</span>
-            <span>${formatTime(h.timestamp)}</span>
-            <span>(${h.tabCount} 个标签)</span>
-          </div>`).join('')}</div>`
+            <span class="timeline-time">${formatTime(h.timestamp)}</span>
+            <span class="timeline-count">${h.tabCount} 个标签</span>
+          </div>`).join('')}
+        </div>`
       : '';
 
     return `
@@ -406,8 +414,21 @@
   btnOpenNote.addEventListener('click', async () => {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab || !tab.url || !/^https?:\/\//.test(tab.url)) {
-        showToast('此页面不支持便签');
+      if (!tab) {
+        showToast('无法获取当前标签页');
+        return;
+      }
+      const url = tab.url || '';
+      if (/^chrome(-extension)?:\/\//.test(url) || /^edge:\/\//.test(url)) {
+        showToast('浏览器内部页面不支持便签');
+        return;
+      }
+      if (/^about:/.test(url) || url === '') {
+        showToast('空白页面不支持便签');
+        return;
+      }
+      if (!/^https?:\/\//.test(url)) {
+        showToast('此类型页面不支持便签');
         return;
       }
 
@@ -540,13 +561,13 @@
       const tabs = groups[host];
       const group = document.createElement('div');
       group.className = 'domain-group';
-      group.style.animationDelay = `${idx * 0.04}s`;
+      if (idx < 10) group.style.animationDelay = `${idx * 0.04}s`;
 
-      // 取第一个 tab 的 favicon
+      // 取第一个 tab 的 favicon（含兜底）
       const firstFav = tabs[0].favIconUrl || '';
       const favHtml = firstFav
-        ? `<img class="domain-favicon" src="${escapeHtml(firstFav)}" onerror="this.style.display='none'">`
-        : `<span class="domain-favicon" style="display:inline-block;width:16px;height:16px;background:var(--surface-active);border-radius:3px;"></span>`;
+        ? `<img class="domain-favicon" src="${escapeHtml(firstFav)}" onerror="this.replaceWith(document.createRange().createContextualFragment('<span class=\\'domain-favicon favicon-fallback\\'></span>'));">`
+        : `<span class="domain-favicon favicon-fallback"></span>`;
 
       group.innerHTML = `
         <div class="domain-header">

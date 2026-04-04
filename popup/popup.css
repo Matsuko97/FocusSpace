@@ -471,12 +471,42 @@ body {
   width: 13px;
   height: 13px;
   border-radius: 2px;
+  flex-shrink: 0;
 }
 
 .scene-tab-item span {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ========== Favicon 兜底图标 ========== */
+.favicon-fallback {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  background: var(--surface-active);
+  border-radius: 3px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.favicon-fallback::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 1px;
+  background: var(--text-dim);
+  opacity: 0.3;
+}
+
+.domain-favicon.favicon-fallback {
+  width: 16px;
+  height: 16px;
+}
+
+.domain-favicon.favicon-fallback::after {
+  inset: 4px;
 }
 
 .scene-detail-tabs {
@@ -826,12 +856,24 @@ body {
   justify-content: center;
   padding: 48px 24px;
   text-align: center;
+  animation: emptyIn 0.4s var(--ease-out);
+}
+
+@keyframes emptyIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .empty-icon {
   margin-bottom: 16px;
   color: var(--text-dim);
-  opacity: 0.7;
+  opacity: 0.5;
+  animation: emptyFloat 3s ease-in-out infinite alternate;
+}
+
+@keyframes emptyFloat {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-4px); }
 }
 
 .empty-title {
@@ -846,14 +888,48 @@ body {
   font-size: 12px;
   color: var(--text-dim);
   line-height: 1.5;
+  max-width: 200px;
+}
+
+/* ========== 场景 meta 操作状态标记 ========== */
+.meta-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  border-radius: var(--radius-xs);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.meta-badge.save {
+  background: rgba(167, 139, 250, 0.1);
+  color: var(--violet);
+}
+
+.meta-badge.restore {
+  background: rgba(45, 212, 191, 0.1);
+  color: var(--teal);
 }
 
 /* ========== 时间线 ========== */
 .timeline {
-  margin-top: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 0;
+}
+
+.timeline-title {
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
 }
 
 .timeline-item {
@@ -862,6 +938,31 @@ body {
   gap: 7px;
   font-size: 10.5px;
   color: var(--text-dim);
+  padding: 3px 0;
+  position: relative;
+  padding-left: 14px;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.timeline-dot.save { background: var(--violet); }
+.timeline-dot.restore { background: var(--teal); }
+
+.timeline-item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 2.5px;
+  top: 14px;
+  bottom: -3px;
+  width: 1px;
+  background: var(--border);
 }
 
 .timeline-badge {
@@ -873,6 +974,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.3px;
   text-transform: uppercase;
+  flex-shrink: 0;
 }
 
 .timeline-badge.save {
@@ -883,6 +985,15 @@ body {
 .timeline-badge.restore {
   background: rgba(45, 212, 191, 0.12);
   color: var(--teal);
+}
+
+.timeline-time {
+  color: var(--text-secondary);
+}
+
+.timeline-count {
+  color: var(--text-dim);
+  margin-left: auto;
 }
 
 /* ========== Hidden 属性支持 ========== */
