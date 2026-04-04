@@ -996,6 +996,95 @@ body {
   margin-left: auto;
 }
 
+/* ========== 便签联动交接清单 ========== */
+.handoff-card {
+  background: rgba(45, 212, 191, 0.06);
+  border: 1px solid rgba(45, 212, 191, 0.15);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  overflow: hidden;
+  animation: viewIn 0.3s var(--ease-out);
+}
+
+.handoff-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 6px;
+}
+
+.handoff-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.handoff-title {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--teal);
+  flex: 1;
+}
+
+.handoff-close {
+  width: 22px !important;
+  height: 22px !important;
+  color: var(--text-dim) !important;
+}
+
+.handoff-list {
+  padding: 0 10px 8px;
+  max-height: 120px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-active) transparent;
+}
+
+.handoff-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 0;
+  border-top: 1px solid rgba(45, 212, 191, 0.08);
+  cursor: pointer;
+  transition: background 0.15s;
+  border-radius: var(--radius-xs);
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.handoff-item:first-child {
+  border-top: none;
+}
+
+.handoff-item:hover {
+  background: rgba(45, 212, 191, 0.06);
+}
+
+.handoff-item-title {
+  font-size: 11.5px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.handoff-item-note {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.handoff-item-icon {
+  color: var(--teal);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
 /* ========== Hidden 属性支持 ========== */
 [hidden] {
   display: none !important;

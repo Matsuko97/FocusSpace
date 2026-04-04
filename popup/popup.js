@@ -343,7 +343,67 @@
     const skippedText = skippedCount > 0 ? `，跳过 ${skippedCount} 个已打开的标签` : '';
     showToast(`已恢复场景「${ws.name}」(${openedCount} 个标签${skippedText})`);
     renderSceneList();
+
+    // 便签联动：展示工作交接清单
+    showHandoffChecklist(ws.tabs, allNotes);
   }
+
+  // ========== 便签联动交接清单 (模块 F) ==========
+  const handoffCard = document.getElementById('handoff-card');
+  const handoffList = document.getElementById('handoff-list');
+  const handoffClose = document.getElementById('handoff-close');
+
+  function showHandoffChecklist(tabs, allNotes) {
+    const items = [];
+    for (const t of tabs) {
+      const urlKey = t.url.split('#')[0];
+      const notes = allNotes[urlKey];
+      if (notes && notes.length > 0) {
+        const preview = notes.map(n => n.content).filter(Boolean).join(' / ');
+        items.push({
+          title: t.title || t.url,
+          url: t.url,
+          notePreview: preview.substring(0, 50) + (preview.length > 50 ? '…' : ''),
+          noteCount: notes.length
+        });
+      }
+    }
+
+    if (items.length === 0) {
+      handoffCard.hidden = true;
+      return;
+    }
+
+    handoffList.innerHTML = items.map(item => `
+      <div class="handoff-item" data-url="${escapeHtml(item.url)}">
+        <svg class="handoff-item-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+        <div>
+          <div class="handoff-item-title">${escapeHtml(item.title)}</div>
+          <div class="handoff-item-note">${escapeHtml(item.notePreview)}</div>
+        </div>
+      </div>
+    `).join('');
+
+    handoffCard.hidden = false;
+
+    // 点击跳转到对应标签页
+    handoffList.addEventListener('click', async (e) => {
+      const itemEl = e.target.closest('.handoff-item');
+      if (!itemEl) return;
+      const url = itemEl.dataset.url;
+      const tabs = await chrome.tabs.query({ currentWindow: true });
+      const target = tabs.find(t => (t.url || t.pendingUrl || '').split('#')[0] === url.split('#')[0]);
+      if (target) {
+        chrome.tabs.update(target.id, { active: true });
+      }
+    });
+  }
+
+  handoffClose.addEventListener('click', () => {
+    handoffCard.hidden = true;
+  });
 
   // ========== 重命名场景 ==========
   async function renameScene(id) {
