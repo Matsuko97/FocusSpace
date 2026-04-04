@@ -281,6 +281,14 @@
     const ws = workspaces.find(w => w.id === id);
     if (!ws) return;
 
+    // 构建当前窗口已打开的 URL 集合（去除 hash）
+    const currentTabs = await chrome.tabs.query({ currentWindow: true });
+    const openedUrls = new Set();
+    currentTabs.forEach(t => {
+      const url = (t.url || t.pendingUrl || '').split('#')[0];
+      if (url) openedUrls.add(url);
+    });
+
     // 查询哪些 URL 有便签
     const allNotes = await Storage.getAllURLNotes();
     const urlsWithNotes = new Set();
@@ -291,11 +299,16 @@
       }
     }
 
-    // 追加打开所有标签，收集需要注入便签的 tabId
+    // 追加打开未重复的标签，收集需要注入便签的 tabId
     const tabsNeedingNotes = [];
+    let skippedCount = 0;
     for (const t of ws.tabs) {
-      const created = await chrome.tabs.create({ url: t.url, pinned: t.pinned, active: false });
       const urlKey = t.url.split('#')[0];
+      if (openedUrls.has(urlKey)) {
+        skippedCount++;
+        continue;
+      }
+      const created = await chrome.tabs.create({ url: t.url, pinned: t.pinned, active: false });
       if (urlsWithNotes.has(urlKey)) {
         tabsNeedingNotes.push(created.id);
       }
@@ -318,7 +331,9 @@
     ws.updatedAt = Date.now();
     await Storage.saveWorkspaces(workspaces);
 
-    showToast(`已恢复场景「${ws.name}」(${ws.tabs.length} 个标签)`);
+    const openedCount = ws.tabs.length - skippedCount;
+    const skippedText = skippedCount > 0 ? `，跳过 ${skippedCount} 个已打开的标签` : '';
+    showToast(`已恢复场景「${ws.name}」(${openedCount} 个标签${skippedText})`);
     renderSceneList();
   }
 
