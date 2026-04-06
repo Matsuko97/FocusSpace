@@ -186,6 +186,7 @@ body {
   padding: 14px 18px;
   scrollbar-width: thin;
   scrollbar-color: #c5bdb2 transparent;
+  scrollbar-gutter: stable;
 }
 
 .view::-webkit-scrollbar { width: 5px; }

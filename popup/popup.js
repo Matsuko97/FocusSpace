@@ -780,8 +780,8 @@
                 <span>${escapeHtml(t.title || t.url)}</span>
                 ${isStale ? '<span class="stale-badge">闲置</span>' : ''}
               </label>
-              <button class="btn-park-tab" title="暂存此标签">||</button>
-              <button class="btn-close-tab" title="关闭此标签">✕</button>
+              <button class="btn-park-tab" title="暂存此标签"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2z"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></button>
+              <button class="btn-close-tab" title="关闭此标签"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
             </div>`;
           }).join('')}
         </div>
@@ -802,6 +802,15 @@
       group.querySelector('.btn-domain-close').addEventListener('click', () => {
         const ids = tabs.map(t => t.id);
         closeTabs(ids, `${host} 的 ${ids.length} 个标签`);
+      });
+
+      // 双击跳转到对应标签页
+      tabsContainer.addEventListener('dblclick', (e) => {
+        const row = e.target.closest('.tab-row');
+        if (row) {
+          const tabId = parseInt(row.dataset.tabId);
+          chrome.tabs.update(tabId, { active: true });
+        }
       });
 
       // Tab 行事件委托
@@ -1147,7 +1156,9 @@
 
   // ========== 初始化 ==========
   async function init() {
+    tabPill.classList.add('pos-1');
     await renderSceneList();
+    await loadTabOverview();
     await checkRecommendation();
   }
 
