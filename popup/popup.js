@@ -1157,9 +1157,11 @@
   // ========== 初始化 ==========
   async function init() {
     tabPill.classList.add('pos-1');
-    await renderSceneList();
-    await loadTabOverview();
-    await checkRecommendation();
+    await Promise.all([
+      renderSceneList(),
+      loadTabOverview(),
+      checkRecommendation()
+    ]);
   }
 
   init();
